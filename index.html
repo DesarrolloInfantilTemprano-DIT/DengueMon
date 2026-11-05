@@ -1,1340 +1,243 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SIGIS_FED - Mapa Georreferenciado</title>
-  
-  <!-- Tailwind CSS & Lucide Icons -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Leaflet Draw (Trazar líneas / Polígonos de búsqueda) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
-  <!-- Librería SheetJS para Exportar a Excel verdadero (.xlsx) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <style>
-    #map { height: calc(100vh - 60px); width: 100%; z-index: 1; }
-    .loader {
-      border-top-color: #2563eb;
-      animation: spinner 0.6s linear infinite;
-    }
-    @keyframes spinner {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .custom-popup .leaflet-popup-content-wrapper {
-      padding: 0;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .custom-popup .leaflet-popup-content {
-      margin: 0;
-      width: 290px !important;
-    }
-    .draw-tooltip {
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid #3b82f6;
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 11px;
-      border-radius: 6px;
-      padding: 4px 8px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    .draw-tooltip::before {
-      border-top-color: rgba(15, 23, 42, 0.9);
-    }
-    @keyframes pulseGps {
-      0% { transform: scale(0.8); opacity: 0.9; }
-      50% { transform: scale(1.4); opacity: 0.2; }
-      100% { transform: scale(0.8); opacity: 0.9; }
-    }
-    .gps-pulse-ring {
-      animation: pulseGps 1.5s infinite ease-in-out;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión y Edición - Censo SIGIS_FED</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card-custom { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .loading-overlay { display: none; background: rgba(255,255,255,0.8); position: fixed; top:0; left:0; width:100%; height:100%; z-index:9999; justify-content:center; align-items:center; }
+    </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 h-screen overflow-hidden flex flex-col">
+<body>
 
-  <!-- DATALIST GLOBAL DE SECTORES RESTRINGIDOS -->
-  <datalist id="listaSectores">
-    <option value="933-AA.VV. 25 DE ENERO"></option>
-    <option value="933-AA.VV. CARMEN GARAY"></option>
-    <option value="933-AA.VV. FUNDO NUEVA ESPERANZA"></option>
-    <option value="933-AA.VV. LOS LAURELES"></option>
-    <option value="933-AA.VV. PUEBLO LIBRE"></option>
-    <option value="933-AA.VV.01 DE MAYO"></option>
-    <option value="933-AA.VV.01 DE SETIEMBRE"></option>
-    <option value="933-AA.VV.07 DE MAYO"></option>
-    <option value="933-AA.VV.09 DE AGOSTO"></option>
-    <option value="933-AA.VV.15 DE AGOSTO"></option>
-    <option value="933-AA.VV.CESAR VALLEJO"></option>
-    <option value="933-AA.VV.CIUDAD COLINA"></option>
-    <option value="933-AA.VV.COLONIA TINGALESA"></option>
-    <option value="933-AA.VV.EDUARDO VILLASANTE"></option>
-    <option value="933-AA.VV.JOSE CARLOS MARIATEGUI"></option>
-    <option value="933-AA.VV.JOSE OLAYA BALANDRA"></option>
-    <option value="933-AA.VV.JUAN PICON QUEDO"></option>
-    <option value="933-AA.VV.JULIO MARTINEZ"></option>
-    <option value="933-AA.VV.LAS ALMENDRAS"></option>
-    <option value="933-AA.VV.LAS AMAZONAS"></option>
-    <option value="933-AA.VV.LAS PALMERAS"></option>
-    <option value="933-AA.VV.LOS ANGELES"></option>
-    <option value="933-AA.VV.LOS JARDINES"></option>
-    <option value="933-AA.VV.LOS PINOS"></option>
-    <option value="933-AA.VV.MARIA PARADO DE BELLIDO"></option>
-    <option value="933-AA.VV.MONTERRICO"></option>
-    <option value="933-AA.VV.NUEVA ESPERANZA"></option>
-    <option value="933-AA.VV.NUEVA JERUSALEN"></option>
-    <option value="933-AA.VV.NUEV AMANECER"></option>
-    <option value="933-AA.VV.PADRES DE FAMILIA"></option>
-    <option value="933-AA.VV.PANTOJA"></option>
-    <option value="933-AA.VV.PEDREGAL"></option>
-    <option value="933-AA.VV.POBLADORES DE CASTILLO GRANDE"></option>
-    <option value="933-AA.VV.SAN CARLOS"></option>
-    <option value="933-AA.VV.SAN ISIDRO"></option>
-    <option value="933-AA.VV.SAN MIGUEL"></option>
-    <option value="933-AA.VV.SANTA ROSA"></option>
-    <option value="933-SOL NACIENTE"></option>
-    <option value="933-COMUNIDAD ASERRADERO"></option>
-    <option value="933-COMUNIDAD CAPITAN SOTO"></option>
-    <option value="933-COMUNIDAD HUANGANAPAMPA"></option>
-    <option value="933-COMUNIDAD HUAYNACAPAC"></option>
-    <option value="933-COMUNIDAD JACINTILLO"></option>
-    <option value="933-COMUNIDAD LA CURVA"></option>
-    <option value="933-COMUNIDAD LA FLORIDA"></option>
-    <option value="933-COMUNIDAD MANCO CAPAC"></option>
-    <option value="933-COMUNIDAD MANTARO"></option>
-    <option value="933-COMUNIDAD MERCED DE LOCRO"></option>
-    <option value="933-COMUNIDAD MOYANO"></option>
-    <option value="933-COMUNIDAD NUEVA ALTURA"></option>
-    <option value="933-COMUNIDAD PACHACUTEC"></option>
-    <option value="933-COMUNIDAD PAPAYAL"></option>
-    <option value="933-COMUNIDAD PICUROYACU"></option>
-    <option value="933-COMUNIDAD SANTA ROSA DE CASTILLA"></option>
-    <option value="933-COMUNIDAD SHAMIRO"></option>
-    <option value="933-COMUNIDAD SINCHI ROCCA"></option>
-    <option value="933-COMUNIDAD VENADO PAMPA"></option>
-    <option value="933-COMUNIDAD YURIMAGUAS"></option>
-    <option value="933-SIN SECTOR"></option>
-  </datalist>
-
-  <!-- CABECERA -->
-  <header class="bg-blue-800 text-white shadow-md z-10 px-3 md:px-4 py-2.5 flex justify-between items-center h-[60px]">
-    <div class="flex items-center space-x-2 md:space-x-3 truncate">
-      <button onclick="togglePanelFiltros()" title="Mostrar/Ocultar Filtros" class="p-1.5 bg-blue-700 hover:bg-blue-600 rounded-lg transition text-white flex items-center justify-center shrink-0">
-        <i data-lucide="filter" id="iconTogglePanel" class="w-5 h-5 text-emerald-400"></i>
-      </button>
-      <i data-lucide="map-pin" class="w-5 h-5 text-emerald-400 hidden sm:block shrink-0"></i>
-      <div class="truncate">
-        <h1 class="text-xs sm:text-base font-bold leading-tight truncate">SIGIS_FED - Georreferenciación</h1>
-        <p class="text-[9px] sm:text-[10px] text-blue-200 truncate">Monitoreo de Familias y Personas</p>
-      </div>
+    <!-- Spinner de Carga -->
+    <div id="loader" class="loading-overlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
     </div>
-    <div class="flex items-center gap-2 shrink-0">
-      <span id="badgeConteo" class="bg-blue-900 text-emerald-300 text-[10px] sm:text-xs px-2.5 py-1 rounded-full font-bold border border-emerald-500/30">
-        Cargando...
-      </span>
-      <button onclick="cargarBaseDatos()" title="Recargar Datos" class="p-1.5 bg-blue-700 hover:bg-blue-600 rounded-lg transition text-white">
-        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-      </button>
+
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card card-custom p-4 bg-white">
+                    <h3 class="text-center mb-4 text-primary fw-bold">Gestión de Censo SIGIS_FED</h3>
+                    
+                    <!-- Buscador por DNI -->
+                    <div class="input-group mb-3">
+                        <input type="text" id="inputDni" class="form-control" placeholder="Ingrese DNI a consultar..." maxlength="15">
+                        <button class="btn btn-primary" type="button" onclick="buscarPorDni()">Buscar</button>
+                    </div>
+
+                    <div id="mensajeAlerta" class="alert d-none" role="alert"></div>
+
+                    <!-- Formulario de Edición (Oculto al inicio) -->
+                    <div id="formContainer" class="d-none mt-3">
+                        <hr>
+                        <h5 class="mb-3 text-secondary">Datos del Ciudadano</h5>
+                        <form id="editForm" onsubmit="guardarCambios(event)">
+                            
+                            <!-- Datos fijos informativos -->
+                            <div class="mb-2">
+                                <label class="form-label fw-bold small">DNI (No editable):</label>
+                                <input type="text" id="lblDni" class="form-control form-control-sm bg-light" readonly>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fw-bold small">Nombre Completo:</label>
+                                <input type="text" id="lblNombre" class="form-control form-control-sm bg-light" readonly>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fw-bold small">Ficha Familiar:</label>
+                                <input type="text" id="lblFamiliar" class="form-control form-control-sm bg-light" readonly>
+                            </div>
+
+                            <hr class="my-3">
+                            <p class="text-muted small fw-bold">CAMPOS EDITABLES:</p>
+
+                            <!-- Historia Clínica -->
+                            <div class="mb-2">
+                                <label for="val_hclinica" class="form-label small">Nro. Historia Clínica (`hclinica`):</label>
+                                <input type="text" id="val_hclinica" class="form-control" data-col="hclinica">
+                            </div>
+
+                            <!-- Teléfono Principal -->
+                            <div class="mb-2">
+                                <label for="val_telefono" class="form-label small">Teléfono Principal (`telefono`):</label>
+                                <input type="text" id="val_telefono" class="form-control" data-col="telefono">
+                            </div>
+
+                            <!-- Teléfono 2 (Columna M en adelante) -->
+                            <div class="mb-2">
+                                <label for="val_telefono_2" class="form-label small">Teléfono 2 / Columna M (`telefono_2` o cambia el nombre según tu Sheet):</label>
+                                <input type="text" id="val_telefono_2" class="form-control" data-col="telefono_2">
+                            </div>
+
+                            <!-- Estado Civil -->
+                            <div class="mb-2">
+                                <label for="val_estado_civil" class="form-label small">Estado Civil (`estado_civil`):</label>
+                                <input type="text" id="val_estado_civil" class="form-control" data-col="estado_civil">
+                            </div>
+
+                            <!-- Sector -->
+                            <div class="mb-2">
+                                <label for="val_sector" class="form-label small">Sector (`sector`):</label>
+                                <input type="text" id="val_sector" class="form-control" data-col="sector">
+                            </div>
+
+                            <!-- Referencia de Dirección -->
+                            <div class="mb-2">
+                                <label for="val_ref_direccion" class="form-label small">Referencia de Dirección (`ref_direccion`):</label>
+                                <input type="text" id="val_ref_direccion" class="form-control" data-col="ref_direccion">
+                            </div>
+
+                            <!-- Manzana -->
+                            <div class="mb-2">
+                                <label for="val_mz" class="form-label small">Manzana (`mz`):</label>
+                                <input type="text" id="val_mz" class="form-control" data-col="mz">
+                            </div>
+
+                            <!-- Georeferencia / GPS -->
+                            <div class="mb-3">
+                                <label for="val_georeferencia" class="form-label small">Georeferencia / GPS (`georeferencia`):</label>
+                                <div class="input-group">
+                                    <input type="text" id="val_georeferencia" class="form-control" data-col="georeferencia">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="obtenerUbicacionActual()">📍 GPS Actual</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100 mt-2">Guardar Cambios</button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
     </div>
-  </header>
 
-  <!-- PANEL PRINCIPAL CONTENEDOR (FILTROS + MAPA) -->
-  <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+    <script>
+        const SCRIPT_ADMIN = 'https://script.google.com/macros/s/AKfycbxmqviwzICjqWFCu9S5cx0Jb4Kp3Si9CcDLmEEALkgKH6VCAmzRJ66SLtPZaBjmbbqu/exec';
+        let dniActual = "";
 
-    <!-- OVERLAY CAPA OSCURA MÓVIL AL ABRIR FILTROS -->
-    <div id="overlayMobile" onclick="togglePanelFiltros()" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 md:hidden"></div>
-
-    <!-- BOTÓN FLOTANTE PARA REABRIR PANEL CUANDO ESTÁ OCULTO -->
-    <button id="btnAbrirPanelFlotante" onclick="togglePanelFiltros()" class="hidden absolute top-3 left-3 z-30 bg-blue-800 text-white p-2 rounded-lg shadow-xl hover:bg-blue-700 transition flex items-center gap-1.5 text-xs font-bold border border-blue-600">
-      <i data-lucide="filter" class="w-4 h-4 text-emerald-400"></i>
-      <span>Filtros</span>
-    </button>
-
-    <!-- PANEL LATERAL DE FILTROS Y ESTADÍSTICAS -->
-    <aside id="panelFiltros" class="fixed md:relative inset-y-0 left-0 w-full max-w-[320px] md:max-w-none md:w-80 bg-white border-r border-slate-200 shadow-2xl md:shadow-lg p-4 overflow-y-auto space-y-4 z-40 md:z-20 top-[60px] md:top-0 h-[calc(100vh-60px)] md:h-auto transition-all duration-300 ease-in-out">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
-          <i data-lucide="filter" class="w-4 h-4 text-blue-600"></i> Filtros de Búsqueda
-        </h2>
-        <div class="flex items-center gap-2">
-          <button onclick="limpiarFiltros()" class="text-[11px] text-blue-600 hover:underline font-semibold">
-            Limpiar Filtros
-          </button>
-          <button onclick="togglePanelFiltros()" title="Ocultar Panel" class="text-slate-400 hover:text-slate-600 p-1">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- BOTÓN DE EXPORTACIÓN A EXCEL (.XLSX) -->
-      <div class="bg-blue-50/80 p-2.5 rounded-lg border border-blue-200 space-y-1.5">
-        <span class="block text-[10px] font-bold text-blue-900 uppercase">Exportar Datos Filtrados:</span>
-        <button onclick="exportarExcelDirecto()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded transition flex items-center justify-center gap-1.5 shadow">
-          <i data-lucide="file-spread-sheet" class="w-4 h-4"></i> Exportar a Excel (.xlsx)
-        </button>
-      </div>
-
-      <!-- MÓDULO DE MONITOREO ESPECIAL -->
-      <div class="bg-amber-50/80 p-3 rounded-lg border border-amber-200 space-y-2">
-        <div class="flex items-center gap-1.5 text-amber-900 font-bold text-xs uppercase border-b border-amber-200 pb-1">
-          <i data-lucide="activity" class="w-4 h-4 text-amber-600"></i>
-          <span>Módulo de Monitoreo</span>
-        </div>
-        
-        <div>
-          <label for="f_tipo_monitoreo" class="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">Tipo de Consulta:</label>
-          <select id="f_tipo_monitoreo" onchange="cambiarTipoMonitoreo()" class="w-full px-2 py-1.5 border border-amber-300 rounded text-xs font-bold text-slate-700 bg-white outline-none focus:ring-2 focus:ring-amber-500">
-            <option value="">-- Todos los Registros (Vista Global) --</option>
-            <option value="InaCRED">Inasistente CRED (InaCRED)</option>
-            <option value="InaAnemia">Inasistente Anemia (InaAnemia)</option>
-            <option value="InaVAC">Vacunas Pendientes (InaVAC)</option>
-            <option value="Gestante">Gestantes (FPP)</option>
-            <option value="AnemiaInfantil">Niños Anémicos (+7 meses Alta)</option>
-            <option value="PAT">Pacientes TBC (PAT)</option>
-            <option value="HTA">Hipertensos (HTA)</option>
-            <option value="DM">Diabéticos (DM)</option>
-          </select>
-        </div>
-
-        <!-- BUSCADOR / SUBFILTRO ESPECÍFICO PARA VACUNAS PENDIENTES (InaVAC) -->
-        <div id="contenedorFiltroVacuna" class="hidden">
-          <label for="f_nombre_vacuna" class="block text-[10px] font-bold text-amber-800 uppercase mb-0.5">Vacuna Pendiente Deseada:</label>
-          <input type="text" id="f_nombre_vacuna" placeholder="Ej: Pentavalente, Neumococo..." oninput="aplicarFiltros()" class="w-full px-2 py-1 border border-amber-300 rounded text-xs outline-none bg-white font-semibold">
-        </div>
-
-        <!-- RANGO DE FECHAS PARA EL MONITOREO -->
-        <div id="contenedorFechasMonitoreo" class="hidden space-y-1 pt-1">
-          <span class="block text-[10px] font-bold text-amber-800 uppercase">Rango de Fechas Monitoreo:</span>
-          <div class="grid grid-cols-2 gap-1.5">
-            <div>
-              <span class="text-[9px] text-slate-500 block">Desde:</span>
-              <input type="date" id="f_mon_desde" onchange="aplicarFiltros()" class="w-full px-1.5 py-1 border border-amber-300 rounded text-[11px] bg-white outline-none">
-            </div>
-            <div>
-              <span class="text-[9px] text-slate-500 block">Hasta:</span>
-              <input type="date" id="f_mon_hasta" onchange="aplicarFiltros()" class="w-full px-1.5 py-1 border border-amber-300 rounded text-[11px] bg-white outline-none">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- FILTRO FICHA FAMILIAR -->
-      <div>
-        <label for="f_ffamiliar" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Ficha Familiar</label>
-        <input type="text" id="f_ffamiliar" placeholder="Ej: 0001234" oninput="aplicarFiltros()"
-          class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none">
-      </div>
-
-      <!-- FILTRO SECTOR (MÚLTIPLE) -->
-      <div>
-        <label for="f_sector" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Sector(es) Múltiple</label>
-        <div class="relative">
-          <input type="text" id="f_sector" placeholder="TODOS LOS SECTORES..." readonly onclick="abrirModalSector()"
-            class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none bg-white cursor-pointer pr-8 truncate">
-          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-2.5 top-2 pointer-events-none"></i>
-        </div>
-      </div>
-
-      <!-- FILTRO MANZANA (MZ) -->
-      <div>
-        <label for="f_mz" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Manzana (Mz) [Separar por comas]</label>
-        <input type="text" id="f_mz" placeholder="Ej: 5, 12, A" oninput="aplicarFiltros()"
-          class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none">
-      </div>
-
-      <!-- FILTRO DNI -->
-      <div>
-        <label for="f_dni" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">DNI</label>
-        <input type="text" id="f_dni" placeholder="Ej: 70000000" maxlength="8" oninput="aplicarFiltros()"
-          class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none">
-      </div>
-
-      <!-- FILTRO APELLIDOS Y NOMBRES -->
-      <div>
-        <label for="f_nombre" class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Apellidos y Nombres</label>
-        <input type="text" id="f_nombre" placeholder="BUSCAR POR NOMBRE..." oninput="aplicarFiltros()"
-          class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none">
-      </div>
-
-      <!-- FILTRO RANGO DE FECHA DE NACIMIENTO CON MUESTRA DE EDADES CALCULADAS -->
-      <div class="bg-blue-50/70 p-3 rounded-lg border border-blue-100 space-y-2">
-        <div class="flex justify-between items-center">
-          <label class="block text-[11px] font-bold text-blue-900 uppercase">Rango Fecha Nacimiento</label>
-        </div>
-        <div>
-          <span class="text-[10px] text-slate-500 font-semibold block mb-0.5">Desde:</span>
-          <input type="date" id="f_fn_desde" onchange="actualizarInfoEdad(); aplicarFiltros();"
-            class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none bg-white">
-        </div>
-        <div>
-          <span class="text-[10px] text-slate-500 font-semibold block mb-0.5">Hasta:</span>
-          <input type="date" id="f_fn_hasta" onchange="actualizarInfoEdad(); aplicarFiltros();"
-            class="w-full px-2 py-1 border border-slate-300 rounded text-xs outline-none bg-white">
-        </div>
-
-        <div id="badgeEdadEquivalente" class="hidden mt-1.5 p-1.5 bg-blue-600 text-white text-[10px] rounded font-bold text-center flex items-center justify-center gap-1 shadow-sm">
-          <i data-lucide="user-check" class="w-3 h-3"></i>
-          <span id="textoEdadEquivalente">Rango: -</span>
-        </div>
-      </div>
-
-      <!-- PANEL DE ESTADÍSTICAS INTERACTIVO POR GRUPO ETARIO -->
-      <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2 pb-6 md:pb-3">
-        <h3 class="text-xs font-bold text-slate-800 uppercase border-b pb-1 flex items-center justify-between">
-          <span>Estadística Demográfica</span>
-          <span id="stat_total" class="text-blue-700 font-extrabold text-[11px]">0 pers.</span>
-        </h3>
-        <p class="text-[10px] text-slate-500 font-medium">Haz clic en un grupo para ubicarlo en el mapa:</p>
-        <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-          <button id="btn_etario_ninos" onclick="toggleFiltroEtario('ninos')" class="bg-emerald-50 border border-emerald-300 p-1.5 rounded flex justify-between items-center hover:bg-emerald-100 transition text-left cursor-pointer">
-            <span class="text-emerald-800 font-bold">Niños (&lt;12)</span>
-            <span id="stat_ninos" class="font-extrabold text-emerald-900">0</span>
-          </button>
-          <button id="btn_etario_adolescentes" onclick="toggleFiltroEtario('adolescentes')" class="bg-teal-50 border border-teal-300 p-1.5 rounded flex justify-between items-center hover:bg-teal-100 transition text-left cursor-pointer">
-            <span class="text-teal-800 font-bold">Adolesc. (12-17)</span>
-            <span id="stat_adolescentes" class="font-extrabold text-teal-900">0</span>
-          </button>
-          <button id="btn_etario_jovenes" onclick="toggleFiltroEtario('jovenes')" class="bg-blue-50 border border-blue-300 p-1.5 rounded flex justify-between items-center hover:bg-blue-100 transition text-left cursor-pointer">
-            <span class="text-blue-800 font-bold">Jóvenes (18-29)</span>
-            <span id="stat_jovenes" class="font-extrabold text-blue-900">0</span>
-          </button>
-          <button id="btn_etario_adultos" onclick="toggleFiltroEtario('adultos')" class="bg-indigo-50 border border-indigo-300 p-1.5 rounded flex justify-between items-center hover:bg-indigo-100 transition text-left cursor-pointer">
-            <span class="text-indigo-800 font-bold">Adultos (30-59)</span>
-            <span id="stat_adultos" class="font-extrabold text-indigo-900">0</span>
-          </button>
-          <button id="btn_etario_ancianos" onclick="toggleFiltroEtario('ancianos')" class="bg-purple-50 border border-purple-300 p-1.5 rounded flex justify-between items-center hover:bg-purple-100 transition text-left cursor-pointer col-span-2">
-            <span class="text-purple-800 font-bold">Ancianos (60+)</span>
-            <span id="stat_ancianos" class="font-extrabold text-purple-900">0</span>
-          </button>
-        </div>
-      </div>
-
-    </aside>
-
-    <!-- MAPA LEAFLET CON BOTÓN GPS MI UBICACIÓN -->
-    <main class="flex-1 relative">
-      <div id="map"></div>
-
-      <!-- BOTÓN FLOTANTE MI UBICACIÓN ACTUAL -->
-      <button onclick="centrarEnUbicacionGPS(true)" title="Centrar en Mi Ubicación GPS" class="absolute bottom-6 right-4 z-20 bg-white hover:bg-slate-100 text-slate-800 p-2.5 rounded-full shadow-2xl border border-slate-300 transition flex items-center justify-center">
-        <i data-lucide="crosshair" class="w-6 h-6 text-red-600"></i>
-      </button>
-    </main>
-  </div>
-
-  <!-- MODAL DE SELECCIÓN DE SECTORES MÚLTIPLES -->
-  <div id="modalSector" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-      <div class="bg-blue-700 text-white p-3.5 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <i data-lucide="map-pin" class="w-5 h-5"></i>
-          <h3 class="font-bold text-sm">Seleccionar Sectores Registrados</h3>
-        </div>
-        <button onclick="cerrarModalSector()" class="hover:bg-blue-800 p-1 rounded transition">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-      <div class="p-3 border-b bg-slate-50 flex gap-2">
-        <input type="text" id="searchSectorInput" placeholder="ESCRIBA PARA BUSCAR SECTOR..." oninput="filtrarListaSectores()"
-          class="flex-1 px-3 py-2 border border-blue-400 rounded-lg text-xs uppercase font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
-        <button onclick="marcarTodosSectores(true)" class="px-2.5 py-1.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded hover:bg-blue-200">
-          MARCAR
-        </button>
-        <button onclick="marcarTodosSectores(false)" class="px-2.5 py-1.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded hover:bg-slate-300">
-          DESMARCAR
-        </button>
-      </div>
-      <div id="contenedorListaSectores" class="p-2 overflow-y-auto flex-1 divide-y divide-slate-100 space-y-1">
-        <!-- Checkboxes generados por JS -->
-      </div>
-      <div class="p-3 bg-slate-100 border-t flex justify-end gap-2">
-        <button onclick="seleccionarSectorTodos()" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-300">
-          TODOS
-        </button>
-        <button onclick="confirmarSectoresSeleccionados()" class="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow">
-          ACEPTAR
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    lucide.createIcons();
-
-    const URL_CENSO = "https://script.google.com/macros/s/AKfycbz-PaNW15W43wBS8AmlEHfFe4QrUnITK-8yEnvwoGUnpw7PdbpNvJhPCc4q5qDs8c3WWg/exec";
-    const URL_MONITOREO = "https://script.google.com/macros/s/AKfycbyXroqRmutduY3ytB_4ZuhPo2RgAzD4x0AS53KfnGX8EVYVUyjJrZbNNiZif7-hkkCxGA/exec"; 
-    
-    let baseDatos = [];
-    let baseMonitoreo = {};
-    let ultimosFiltradosGlobal = [];
-    let map = null;
-    let markersLayer = L.layerGroup();
-    let drawnItems = new L.FeatureGroup();
-    let userGpsMarker = null;
-    let userCurrentCoords = null;
-    let sectoresSeleccionados = new Set();
-    let filtroEtarioActivo = null;
-
-    // ICONOS COLOREADOS SEGÚN RIESGO (Pin SVGs)
-    function crearIconoColor(colorHex) {
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${colorHex}" width="32" height="32" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-          <circle cx="12" cy="10" r="3" fill="#ffffff"/>
-        </svg>
-      `;
-      return L.divIcon({
-        html: svg,
-        className: "",
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -28]
-      });
-    }
-
-    // ICONO GUINDA ESPECIAL PARA GESTANTES
-    function crearIconoGestanteGuinda() {
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#800020" width="34" height="34" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-          <circle cx="12" cy="8" r="2.5" fill="#ffffff"/>
-          <path d="M10.5 12.5c.8-.5 1.7-.5 2.5 0 .8.5 1.5 1.5 1 2.5-.5 1-2 1.5-2 1.5s-1.5-.5-2-1.5c-.5-1 .2-2 1-2.5Z" fill="#ffffff"/>
-        </svg>
-      `;
-      return L.divIcon({
-        html: svg,
-        className: "",
-        iconSize: [34, 34],
-        iconAnchor: [17, 34],
-        popupAnchor: [0, -30]
-      });
-    }
-
-    // ICONO CRUZ EN TIEMPO REAL PARA GPS ROJO PULSANTE CON ALTA VISIBILIDAD
-    function crearIconoCruzGPS() {
-      const svg = `
-        <div style="position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
-          <div class="gps-pulse-ring" style="position:absolute; width:32px; height:32px; border-radius:50%; background:rgba(239, 68, 68, 0.45);"></div>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
-            <circle cx="12" cy="12" r="9" fill="#ffffff" fill-opacity="0.95"/>
-            <line x1="12" y1="2" x2="12" y2="22"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-          </svg>
-        </div>
-      `;
-      return L.divIcon({
-        html: svg,
-        className: "",
-        iconSize: [36, 36],
-        iconAnchor: [18, 18]
-      });
-    }
-
-    const iconosRiesgo = {
-      rojo: crearIconoColor('#ef4444'),    // Anemia, Inasistentes, Vacunas
-      guinda: crearIconoGestanteGuinda(),  // Gestantes
-      amarillo: crearIconoColor('#f59e0b'),// Crónicos / Alerta
-      azul: crearIconoColor('#2563eb')     // Estándar
-    };
-
-    function togglePanelFiltros() {
-      const panel = document.getElementById('panelFiltros');
-      const btnFlotante = document.getElementById('btnAbrirPanelFlotante');
-      const overlay = document.getElementById('overlayMobile');
-
-      if (panel.classList.contains('hidden')) {
-        panel.classList.remove('hidden');
-        if (overlay) overlay.classList.remove('hidden');
-        btnFlotante.classList.add('hidden');
-      } else {
-        panel.classList.add('hidden');
-        if (overlay) overlay.classList.add('hidden');
-        btnFlotante.classList.remove('hidden');
-      }
-      lucide.createIcons();
-      setTimeout(() => { if (map) map.invalidateSize(); }, 300);
-    }
-
-    function initModalSectores() {
-      const datalist = document.getElementById('listaSectores');
-      const opciones = Array.from(datalist.options).map(opt => opt.value);
-      renderSectoresModal(opciones);
-    }
-
-    function renderSectoresModal(lista) {
-      const cont = document.getElementById('contenedorListaSectores');
-      cont.innerHTML = "";
-      if (lista.length === 0) {
-        cont.innerHTML = `<div class="p-4 text-center text-xs text-slate-500 font-semibold">No se encontraron sectores</div>`;
-        return;
-      }
-      lista.forEach(sec => {
-        const isChecked = sectoresSeleccionados.has(sec);
-        const label = document.createElement('label');
-        label.className = "flex items-center gap-3 p-2 hover:bg-blue-50 cursor-pointer rounded transition text-xs font-bold text-slate-700 uppercase";
-        label.innerHTML = `
-          <input type="checkbox" value="${sec}" ${isChecked ? 'checked' : ''} onchange="toggleSectorCheckbox('${sec}', this.checked)" class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
-          <span class="flex-1">${sec}</span>
-        `;
-        cont.appendChild(label);
-      });
-    }
-
-    function toggleSectorCheckbox(sec, checked) {
-      if (checked) {
-        sectoresSeleccionados.add(sec);
-      } else {
-        sectoresSeleccionados.delete(sec);
-      }
-    }
-
-    function marcarTodosSectores(estado) {
-      const datalist = document.getElementById('listaSectores');
-      const opciones = Array.from(datalist.options).map(opt => opt.value);
-      if (estado) {
-        opciones.forEach(sec => sectoresSeleccionados.add(sec));
-      } else {
-        sectoresSeleccionados.clear();
-      }
-      filtrarListaSectores();
-    }
-
-    function filtrarListaSectores() {
-      const q = document.getElementById('searchSectorInput').value.trim().toLowerCase();
-      const datalist = document.getElementById('listaSectores');
-      const opciones = Array.from(datalist.options).map(opt => opt.value);
-      const filtradas = opciones.filter(opt => opt.toLowerCase().includes(q));
-      renderSectoresModal(filtradas);
-    }
-
-    function abrirModalSector() {
-      document.getElementById('modalSector').classList.remove('hidden');
-      document.getElementById('searchSectorInput').value = "";
-      filtrarListaSectores();
-      document.getElementById('searchSectorInput').focus();
-    }
-
-    function cerrarModalSector() {
-      document.getElementById('modalSector').classList.add('hidden');
-    }
-
-    function seleccionarSectorTodos() {
-      sectoresSeleccionados.clear();
-      document.getElementById('f_sector').value = "";
-      cerrarModalSector();
-      aplicarFiltros();
-    }
-
-    function confirmarSectoresSeleccionados() {
-      const arraySectores = Array.from(sectoresSeleccionados);
-      if (arraySectores.length === 0) {
-        document.getElementById('f_sector').value = "";
-      } else {
-        document.getElementById('f_sector').value = arraySectores.join(', ');
-      }
-      cerrarModalSector();
-      aplicarFiltros();
-    }
-
-    function cambiarTipoMonitoreo() {
-      const tipo = document.getElementById('f_tipo_monitoreo').value;
-      const contVacuna = document.getElementById('contenedorFiltroVacuna');
-      const contFechas = document.getElementById('contenedorFechasMonitoreo');
-
-      if (tipo === "InaVAC") {
-        contVacuna.classList.remove('hidden');
-      } else {
-        contVacuna.classList.add('hidden');
-      }
-
-      if (tipo !== "") {
-        contFechas.classList.remove('hidden');
-        cargarMonitoreoHoja(tipo);
-      } else {
-        contFechas.classList.add('hidden');
-        aplicarFiltros();
-      }
-    }
-
-    // CARGA INICIAL COMPLETA DE TODAS LAS HOJAS DE MONITOREO
-    async function cargarMonitoreoInicialCompleto() {
-      const pestañasMonitoreo = ["Gestante", "AnemiaInfantil", "InaCRED", "InaAnemia", "InaVAC", "HTA", "DM", "PAT"];
-      
-      for (const hoja of pestañasMonitoreo) {
-        const localMon = localStorage.getItem(`SIGIS_MON_${hoja}`);
-        if (localMon) {
-          baseMonitoreo[hoja] = JSON.parse(localMon);
+        function mostrarLoader(mostrar) {
+            document.getElementById('loader').style.display = mostrar ? 'flex' : 'none';
         }
-      }
 
-      aplicarFiltros();
-
-      for (const hoja of pestañasMonitoreo) {
-        try {
-          const response = await fetch(`${URL_MONITOREO}?action=obtenerMonitoreo&hoja=${encodeURIComponent(hoja)}`);
-          const result = await response.json();
-          if (result && result.status === "ok") {
-            baseMonitoreo[hoja] = {};
-            (result.data || []).forEach(row => {
-              const dniStr = row.dni ? row.dni.toString().trim() : "";
-              if (dniStr) {
-                baseMonitoreo[hoja][dniStr] = { valB: row.valB || "", valC: row.valC || "" };
-              }
-            });
-            try { localStorage.setItem(`SIGIS_MON_${hoja}`, JSON.stringify(baseMonitoreo[hoja])); } catch(e){}
-          }
-        } catch(e) {
-          console.log(`Carga diferida ${hoja}:`, e);
+        function mostrarAlerta(texto, tipo) {
+            const alerta = document.getElementById('mensajeAlerta');
+            alerta.className = `alert alert-${tipo} mt-3`;
+            alerta.textContent = texto;
+            alerta.classList.remove('d-none');
         }
-      }
-      aplicarFiltros();
-    }
 
-    async function cargarMonitoreoHoja(hojaNombre) {
-      if (baseMonitoreo[hojaNombre]) {
-        aplicarFiltros();
-        return;
-      }
-      document.getElementById('badgeConteo').textContent = `Cargando ${hojaNombre}...`;
-      try {
-        const response = await fetch(`${URL_MONITOREO}?action=obtenerMonitoreo&hoja=${encodeURIComponent(hojaNombre)}`);
-        const result = await response.json();
-
-        if (result && result.status === "ok") {
-          baseMonitoreo[hojaNombre] = {};
-          (result.data || []).forEach(row => {
-            const dniStr = row.dni ? row.dni.toString().trim() : "";
-            if (dniStr) {
-              baseMonitoreo[hojaNombre][dniStr] = {
-                valB: row.valB || "",
-                valC: row.valC || ""
-              };
+        async function buscarPorDni() {
+            const dni = document.getElementById('inputDni').value.trim();
+            if (!dni) {
+                alert("Por favor ingrese un DNI válido.");
+                return;
             }
-          });
-          try { localStorage.setItem(`SIGIS_MON_${hojaNombre}`, JSON.stringify(baseMonitoreo[hojaNombre])); } catch(e){}
-          aplicarFiltros();
-        } else {
-          baseMonitoreo[hojaNombre] = {};
-          aplicarFiltros();
-        }
-      } catch (e) {
-        console.error(`Error al cargar monitoreo ${hojaNombre}:`, e);
-        const localMon = localStorage.getItem(`SIGIS_MON_${hojaNombre}`);
-        if (localMon) baseMonitoreo[hojaNombre] = JSON.parse(localMon);
-        else baseMonitoreo[hojaNombre] = {};
-        aplicarFiltros();
-      }
-    }
 
-    function toggleFiltroEtario(grupo) {
-      const botones = ['ninos', 'adolescentes', 'jovenes', 'adultos', 'ancianos'];
-      
-      if (filtroEtarioActivo === grupo) {
-        filtroEtarioActivo = null;
-      } else {
-        filtroEtarioActivo = grupo;
-      }
-
-      botones.forEach(b => {
-        const btn = document.getElementById(`btn_etario_${b}`);
-        if (b === filtroEtarioActivo) {
-          btn.classList.add('ring-2', 'ring-blue-600', 'shadow-md', 'scale-[1.02]');
-        } else {
-          btn.classList.remove('ring-2', 'ring-blue-600', 'shadow-md', 'scale-[1.02]');
-        }
-      });
-
-      aplicarFiltros();
-    }
-
-    function initMap() {
-      map = L.map('map').setView([-9.288639, -76.008830], 14);
-
-      const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps'
-      });
-
-      const callejero = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      });
-
-      googleHybrid.addTo(map);
-
-      const baseMaps = {
-        "Satelital HD (Google Earth)": googleHybrid,
-        "Callejero": callejero
-      };
-
-      L.control.layers(baseMaps).addTo(map);
-      markersLayer.addTo(map);
-      map.addLayer(drawnItems);
-
-      const drawControl = new L.Control.Draw({
-        draw: {
-          polygon: true,
-          rectangle: true,
-          circle: true,
-          polyline: false,
-          marker: false,
-          circlemarker: false
-        },
-        edit: {
-          featureGroup: drawnItems,
-          remove: true
-        }
-      });
-      map.addControl(drawControl);
-
-      map.on(L.Draw.Event.CREATED, function (e) {
-        drawnItems.clearLayers();
-        drawnItems.addLayer(e.layer);
-        aplicarFiltros();
-      });
-
-      map.on(L.Draw.Event.EDITED, function () {
-        aplicarFiltros();
-      });
-
-      map.on(L.Draw.Event.DELETED, function () {
-        aplicarFiltros();
-      });
-
-      if (window.innerWidth < 768) {
-        document.getElementById('panelFiltros').classList.add('hidden');
-        document.getElementById('btnAbrirPanelFlotante').classList.remove('hidden');
-      }
-
-      initModalSectores();
-      cargarBaseDatos();
-      iniciarSeguimientoGPSContinuo();
-      cargarMonitoreoInicialCompleto();
-    }
-
-    async function cargarBaseDatos() {
-      document.getElementById('badgeConteo').textContent = "Cargando...";
-      try {
-        const response = await fetch(`${URL_CENSO}?action=obtenerTodosMapas`);
-        const result = await response.json();
-
-        if (result && result.status === "ok") {
-          baseDatos = result.data || [];
-          try { localStorage.setItem('SIGIS_BASE_DATOS', JSON.stringify(baseDatos)); } catch(e){}
-          aplicarFiltros();
-        } else {
-          document.getElementById('badgeConteo').textContent = "0 Registros";
-        }
-      } catch (error) {
-        console.error("Error al cargar mapa:", error);
-        const localData = localStorage.getItem('SIGIS_BASE_DATOS');
-        if (localData) {
-          baseDatos = JSON.parse(localData);
-          document.getElementById('badgeConteo').textContent = "Modo Offline Activo";
-          aplicarFiltros();
-        } else {
-          document.getElementById('badgeConteo').textContent = "Error de conexión";
-        }
-      }
-    }
-
-    function parseFechaPeruana(strFecha) {
-      if (!strFecha) return null;
-      if (strFecha.includes('-')) {
-        const partes = strFecha.split('-');
-        if (partes[0].length === 4) return new Date(strFecha);
-      }
-      const partes = strFecha.split('/');
-      if (partes.length === 3) {
-        return new Date(partes[2], partes[1] - 1, partes[0]);
-      }
-      return null;
-    }
-
-    function calcularEdad(strFecha) {
-      const fn = parseFechaPeruana(strFecha);
-      if (!fn || isNaN(fn.getTime())) return null;
-      const hoy = new Date();
-      let edad = hoy.getFullYear() - fn.getFullYear();
-      const m = hoy.getMonth() - fn.getMonth();
-      if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
-        edad--;
-      }
-      return edad;
-    }
-
-    function obtenerTextoEdadDetallada(strFecha) {
-      const fn = parseFechaPeruana(strFecha);
-      if (!fn || isNaN(fn.getTime())) return 'S/I';
-
-      const hoy = new Date();
-      let anios = hoy.getFullYear() - fn.getFullYear();
-      let meses = hoy.getMonth() - fn.getMonth();
-      let dias = hoy.getDate() - fn.getDate();
-
-      if (dias < 0) {
-        meses--;
-        const ultimoDiaMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
-        dias += ultimoDiaMesAnterior;
-      }
-
-      if (meses < 0) {
-        anios--;
-        meses += 12;
-      }
-
-      return `${anios} años, ${meses} meses, ${dias} días`;
-    }
-
-    function sumarMesesAFecha(strFecha, mesesASumar = 7) {
-      const d = parseFechaPeruana(strFecha);
-      if (!d) return strFecha || '-';
-      d.setMonth(d.getMonth() + mesesASumar);
-      const dia = String(d.getDate()).padStart(2, '0');
-      const mes = String(d.getMonth() + 1).padStart(2, '0');
-      const anio = d.getFullYear();
-      return `${dia}/${mes}/${anio}`;
-    }
-
-    function diasHastaFecha(strFecha) {
-      const d = parseFechaPeruana(strFecha);
-      if (!d) return null;
-      const hoy = new Date();
-      const diffMs = d.getTime() - hoy.getTime();
-      return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    }
-
-    // SEGUIMIENTO GPS EN TIEMPO REAL CON CENTRADO DIRECTO CERCANO
-    function iniciarSeguimientoGPSContinuo() {
-      if (!navigator.geolocation) {
-        alert("Geolocalización no soportada por el navegador.");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(pos => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        userCurrentCoords = [lat, lng];
-
-        if (!userGpsMarker) {
-          userGpsMarker = L.marker([lat, lng], {
-            icon: crearIconoCruzGPS(),
-            zIndexOffset: 3000
-          }).addTo(map).bindPopup("<b>📍 Tu Ubicación Actual</b>");
-        } else {
-          userGpsMarker.setLatLng([lat, lng]);
-        }
-
-        // Posicionar el mapa directamente donde está el usuario con Zoom de detalle (17)
-        map.setView([lat, lng], 17);
-      }, err => console.log("GPS inicial:", err.message), { enableHighAccuracy: true });
-
-      navigator.geolocation.watchPosition(position => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        userCurrentCoords = [lat, lng];
-
-        if (userGpsMarker) {
-          userGpsMarker.setLatLng([lat, lng]);
-        } else {
-          userGpsMarker = L.marker([lat, lng], {
-            icon: crearIconoCruzGPS(),
-            zIndexOffset: 3000
-          }).addTo(map).bindPopup("<b>📍 Tu Ubicación Actual</b>");
-        }
-      }, err => {
-        console.log("GPS Watch:", err.message);
-      }, {
-        enableHighAccuracy: true,
-        maximumAge: 3000,
-        timeout: 10000
-      });
-    }
-
-    function centrarEnUbicacionGPS(mostrarMensaje = false) {
-      if (userCurrentCoords) {
-        map.setView(userCurrentCoords, 17);
-        if (userGpsMarker) userGpsMarker.openPopup();
-      } else {
-        navigator.geolocation.getCurrentPosition(pos => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          userCurrentCoords = [lat, lng];
-          map.setView([lat, lng], 17);
-          if (userGpsMarker) {
-            userGpsMarker.setLatLng([lat, lng]);
-          } else {
-            userGpsMarker = L.marker([lat, lng], {
-              icon: crearIconoCruzGPS(),
-              zIndexOffset: 3000
-            }).addTo(map).bindPopup("<b>📍 Tu Ubicación Actual</b>");
-          }
-          userGpsMarker.openPopup();
-        }, err => {
-          alert("Asegúrate de permitir el acceso a la ubicación GPS en la barra del navegador.");
-        }, { enableHighAccuracy: true });
-      }
-    }
-
-    function actualizarInfoEdad() {
-      const fnDesdeStr = document.getElementById('f_fn_desde').value;
-      const fnHastaStr = document.getElementById('f_fn_hasta').value;
-      const badge = document.getElementById('badgeEdadEquivalente');
-      const texto = document.getElementById('textoEdadEquivalente');
-
-      if (!fnDesdeStr && !fnHastaStr) {
-        badge.classList.add('hidden');
-        return;
-      }
-
-      let edadMin = null;
-      let edadMax = null;
-
-      if (fnHastaStr) edadMin = calcularEdad(fnHastaStr);
-      if (fnDesdeStr) edadMax = calcularEdad(fnDesdeStr);
-
-      badge.classList.remove('hidden');
-
-      if (edadMin !== null && edadMax !== null) {
-        if (edadMin > edadMax) {
-          const temp = edadMin; edadMin = edadMax; edadMax = temp;
-        }
-        texto.textContent = `Edades filtradas: ${edadMin} a ${edadMax} años`;
-      } else if (edadMin !== null) {
-        texto.textContent = `Edades filtradas: Desde ${edadMin} años`;
-      } else if (edadMax !== null) {
-        texto.textContent = `Edades filtradas: Hasta ${edadMax} años`;
-      }
-      lucide.createIcons();
-    }
-
-    function normalizarMz(mzStr) {
-      if (!mzStr) return "";
-      return mzStr.toString().toLowerCase().replace(/mz|\.|\s/g, '').trim();
-    }
-
-    function obtenerResumenMonitoreoPersona(dniStr) {
-      if (!dniStr) return "";
-      let hallazgos = [];
-
-      Object.keys(baseMonitoreo).forEach(hojaKey => {
-        const datosH = baseMonitoreo[hojaKey];
-        if (datosH && datosH[dniStr]) {
-          const valB = datosH[dniStr].valB || "";
-          if (hojaKey === "InaVAC") hallazgos.push(`Vacuna Pendiente: ${valB}`);
-          else if (hojaKey === "InaCRED") hallazgos.push(`InaCRED: ${valB}`);
-          else if (hojaKey === "InaAnemia") hallazgos.push(`InaAnemia: ${valB}`);
-          else if (hojaKey === "Gestante") hallazgos.push(`Gestante FPP: ${valB}`);
-          else if (hojaKey === "AnemiaInfantil") hallazgos.push(`Niño Anémico (Alta: ${sumarMesesAFecha(valB, 7)})`);
-          else hallazgos.push(`${hojaKey}: ${valB || 'Registrado'}`);
-        }
-      });
-
-      return hallazgos.join(" | ");
-    }
-
-    function exportarExcelDirecto() {
-      if (!ultimosFiltradosGlobal || ultimosFiltradosGlobal.length === 0) {
-        alert("No hay registros filtrados para exportar.");
-        return;
-      }
-
-      const datosExcel = ultimosFiltradosGlobal.map((p, idx) => {
-        const dniStr = p.dni ? p.dni.toString().trim() : '';
-        const resumenMon = obtenerResumenMonitoreoPersona(dniStr);
-
-        return {
-          "Item": idx + 1,
-          "Ficha Familiar": p.ffamiliar || 'S/N',
-          "Apellidos y Nombres": p.nombreB || '',
-          "DNI": p.dni || '',
-          "Fecha Nacimiento": p.fn || '',
-          "Edad Detallada": obtenerTextoEdadDetallada(p.fn),
-          "Historia Clínica": p.hclinica || '',
-          "Teléfono": p.telefono || '',
-          "Sector": p.sector || '',
-          "Manzana": p.mz || '',
-          "Referencia / Dirección": p.ref_direccion || '',
-          "Condición / Monitoreo": resumenMon || 'Sin Alerta Registrada',
-          "Georreferencia": p.georeferencia || ''
-        };
-      });
-
-      const worksheet = XLSX.utils.json_to_sheet(datosExcel);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Monitoreo_SIGIS_FED");
-
-      const maxAnchos = [
-        { wch: 6 }, { wch: 15 }, { wch: 35 }, { wch: 12 },
-        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 },
-        { wch: 30 }, { wch: 10 }, { wch: 35 }, { wch: 45 }, { wch: 25 }
-      ];
-      worksheet['!cols'] = maxAnchos;
-
-      XLSX.writeFile(workbook, `SIGIS_FED_Monitoreo_${new Date().toISOString().slice(0,10)}.xlsx`);
-    }
-
-    function aplicarFiltros() {
-      const ffamiliar = document.getElementById('f_ffamiliar').value.trim().toLowerCase();
-      
-      const arraySectoresInput = Array.from(sectoresSeleccionados).map(s => s.toLowerCase());
-
-      const mzInputRaw = document.getElementById('f_mz').value.trim();
-      const arrayMzInput = mzInputRaw ? mzInputRaw.split(',').map(m => normalizarMz(m)).filter(m => m !== "") : [];
-
-      const dni = document.getElementById('f_dni').value.trim().toLowerCase();
-      const nombre = document.getElementById('f_nombre').value.trim().toLowerCase();
-
-      const fnDesdeStr = document.getElementById('f_fn_desde').value;
-      const fnHastaStr = document.getElementById('f_fn_hasta').value;
-
-      const dateDesde = fnDesdeStr ? new Date(fnDesdeStr) : null;
-      const dateHasta = fnHastaStr ? new Date(fnHastaStr) : null;
-
-      const tipoMon = document.getElementById('f_tipo_monitoreo').value;
-      const nombreVacuna = document.getElementById('f_nombre_vacuna').value.trim().toLowerCase();
-      const monDesdeStr = document.getElementById('f_mon_desde').value;
-      const monHastaStr = document.getElementById('f_mon_hasta').value;
-
-      const dateMonDesde = monDesdeStr ? new Date(monDesdeStr) : null;
-      const dateMonHasta = monHastaStr ? new Date(monHastaStr) : null;
-
-      markersLayer.clearLayers();
-
-      const filtrados = baseDatos.filter(item => {
-        const itemDni = item.dni ? item.dni.toString().trim() : "";
-
-        if (tipoMon) {
-          const datosHoja = baseMonitoreo[tipoMon];
-          if (!datosHoja || !datosHoja[itemDni]) return false;
-
-          const regMon = datosHoja[itemDni];
-
-          if (tipoMon === "InaVAC" && nombreVacuna) {
-            if (!regMon.valB || !regMon.valB.toLowerCase().includes(nombreVacuna)) return false;
-          }
-
-          if (dateMonDesde || dateMonHasta) {
-            let fechaMonStr = regMon.valB;
-            const fechaMonObj = parseFechaPeruana(fechaMonStr);
-            if (!fechaMonObj) return false;
-
-            if (dateMonDesde && fechaMonObj < dateMonDesde) return false;
-            if (dateMonHasta && fechaMonObj > dateMonHasta) return false;
-          }
-        }
-
-        if (ffamiliar && (!item.ffamiliar || !item.ffamiliar.toString().toLowerCase().includes(ffamiliar))) return false;
-        
-        if (arraySectoresInput.length > 0) {
-          if (!item.sector) return false;
-          const itemSector = item.sector.toString().toLowerCase();
-          const coincideSector = arraySectoresInput.some(sec => itemSector.includes(sec));
-          if (!coincideSector) return false;
-        }
-
-        if (arrayMzInput.length > 0) {
-          const itemMz = normalizarMz(item.mz);
-          const coincideMz = arrayMzInput.some(m => itemMz === m);
-          if (!coincideMz) return false;
-        }
-
-        if (dni && (!item.dni || !item.dni.toString().toLowerCase().includes(dni))) return false;
-        if (nombre && (!item.nombreB || !item.nombreB.toString().toLowerCase().includes(nombre))) return false;
-
-        if (dateDesde || dateHasta) {
-          const fnFecha = parseFechaPeruana(item.fn);
-          if (!fnFecha) return false;
-          if (dateDesde && fnFecha < dateDesde) return false;
-          if (dateHasta && fnFecha > dateHasta) return false;
-        }
-
-        if (filtroEtarioActivo) {
-          const edad = calcularEdad(item.fn);
-          if (edad === null) return false;
-          if (filtroEtarioActivo === 'ninos' && edad >= 12) return false;
-          if (filtroEtarioActivo === 'adolescentes' && (edad < 12 || edad > 17)) return false;
-          if (filtroEtarioActivo === 'jovenes' && (edad < 18 || edad > 29)) return false;
-          if (filtroEtarioActivo === 'adultos' && (edad < 30 || edad > 59)) return false;
-          if (filtroEtarioActivo === 'ancianos' && edad < 60) return false;
-        }
-
-        return true;
-      });
-
-      ultimosFiltradosGlobal = filtrados;
-      actualizarEstadisticas(filtrados);
-
-      const gruposCoordenadas = {};
-
-      filtrados.forEach((item) => {
-        if (!item.georeferencia) return;
-        const strGeoref = item.georeferencia.toString().replace(/;/g, ',').replace(/\s+/g, '');
-        const coords = strGeoref.split(',');
-        if (coords.length >= 2) {
-          const lat = parseFloat(coords[0].replace(',', '.'));
-          const lng = parseFloat(coords[1].replace(',', '.'));
-
-          if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-            const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-            if (!gruposCoordenadas[key]) {
-              gruposCoordenadas[key] = { lat, lng, ffamiliar: item.ffamiliar, integrantes: [] };
-            }
-            gruposCoordenadas[key].integrantes.push(item);
-          }
-        }
-      });
-
-      const bounds = [];
-      let totalPersonasEnFigura = 0;
-      let totalPuntosEnFigura = 0;
-
-      Object.values(gruposCoordenadas).forEach(grupo => {
-        if (drawnItems.getLayers().length > 0) {
-          let dentro = false;
-          const pt = L.latLng(grupo.lat, grupo.lng);
-          drawnItems.eachLayer(layer => {
-            if (layer instanceof L.Circle) {
-              if (layer.getLatLng().distanceTo(pt) <= layer.getRadius()) dentro = true;
-            } else if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
-              if (layer.getBounds().contains(pt)) dentro = true;
-            }
-          });
-          if (!dentro) return;
-        }
-
-        totalPuntosEnFigura++;
-        totalPersonasEnFigura += grupo.integrantes.length;
-        bounds.push([grupo.lat, grupo.lng]);
-
-        let countNinos = 0, countAdolescentes = 0, countJovenes = 0, countAdultos = 0, countAncianos = 0;
-        let grupoTieneRiesgoAlto = false;
-        let grupoTieneGestante = false;
-        let grupoTieneCronico = false;
-
-        grupo.integrantes.forEach(ing => {
-          const edad = calcularEdad(ing.fn);
-          if (edad !== null) {
-            if (edad < 12) countNinos++;
-            else if (edad <= 17) countAdolescentes++;
-            else if (edad <= 29) countJovenes++;
-            else if (edad <= 59) countAdultos++;
-            else countAncianos++;
-          }
-
-          const ingDni = ing.dni ? ing.dni.toString().trim() : '';
-
-          if (baseMonitoreo["Gestante"] && baseMonitoreo["Gestante"][ingDni]) grupoTieneGestante = true;
-          if (baseMonitoreo["AnemiaInfantil"] && baseMonitoreo["AnemiaInfantil"][ingDni]) grupoTieneRiesgoAlto = true;
-          if (baseMonitoreo["InaCRED"] && baseMonitoreo["InaCRED"][ingDni]) grupoTieneRiesgoAlto = true;
-          if (baseMonitoreo["InaAnemia"] && baseMonitoreo["InaAnemia"][ingDni]) grupoTieneRiesgoAlto = true;
-          if (baseMonitoreo["InaVAC"] && baseMonitoreo["InaVAC"][ingDni]) grupoTieneRiesgoAlto = true;
-          if (baseMonitoreo["HTA"] && baseMonitoreo["HTA"][ingDni]) grupoTieneCronico = true;
-          if (baseMonitoreo["DM"] && baseMonitoreo["DM"][ingDni]) grupoTieneCronico = true;
-          if (baseMonitoreo["PAT"] && baseMonitoreo["PAT"][ingDni]) grupoTieneCronico = true;
-        });
-
-        let iconoAUsar = iconosRiesgo.azul;
-        if (grupoTieneGestante) iconoAUsar = iconosRiesgo.guinda;
-        else if (grupoTieneRiesgoAlto) iconoAUsar = iconosRiesgo.rojo;
-        else if (grupoTieneCronico) iconoAUsar = iconosRiesgo.amarillo;
-
-        const urlGoogleMaps = `https://www.google.com/maps/dir/?api=1&destination=${grupo.lat},${grupo.lng}`;
-
-        let popupContent = `
-          <div class="custom-popup font-sans text-xs">
-            <div class="bg-blue-800 text-white p-2.5 flex justify-between items-center">
-              <div>
-                <span class="text-[10px] uppercase text-blue-200 block font-bold">Ficha Familiar</span>
-                <span class="font-bold text-sm">${grupo.ffamiliar || 'S/N'}</span>
-              </div>
-              <span class="text-[10px] bg-emerald-500 text-slate-900 font-extrabold px-2 py-0.5 rounded-full">${grupo.integrantes.length} Integrante(s)</span>
-            </div>
-
-            <div class="p-2 bg-slate-100 border-b border-slate-200 text-[10px] text-slate-700 flex justify-between items-center">
-              <div>
-                <p><strong>Sector:</strong> ${grupo.integrantes[0].sector || '-'}</p>
-                <p><strong>Ref / Mz:</strong> ${grupo.integrantes[0].ref_direccion || '-'} (Mz ${grupo.integrantes[0].mz || '-'})</p>
-              </div>
-              <a href="${urlGoogleMaps}" target="_blank" title="Ir a Google Maps" class="bg-blue-600 text-white p-1.5 rounded-lg hover:bg-blue-700 transition flex items-center justify-center shrink-0 ml-1">
-                <i data-lucide="navigation" class="w-4 h-4"></i>
-              </a>
-            </div>
-
-            <div class="p-2 bg-blue-50 border-b border-blue-100 text-[10px] grid grid-cols-3 gap-1 text-center font-bold">
-              <span class="text-emerald-700">Niños: ${countNinos}</span>
-              <span class="text-teal-700">Adol: ${countAdolescentes}</span>
-              <span class="text-blue-700">Jóv: ${countJovenes}</span>
-              <span class="text-indigo-700">Adult: ${countAdultos}</span>
-              <span class="text-purple-700 col-span-2">Ancianos (60+): ${countAncianos}</span>
-            </div>
-
-            <div class="p-2 space-y-2 max-h-48 overflow-y-auto">
-        `;
-
-        grupo.integrantes.forEach(ing => {
-          const edadTxt = obtenerTextoEdadDetallada(ing.fn);
-          const tel = ing.telefono ? ing.telefono.toString().trim() : '';
-          const ingDni = ing.dni ? ing.dni.toString().trim() : '';
-
-          const resumenMon = obtenerResumenMonitoreoPersona(ingDni);
-          let htmlMonitoreoInfo = "";
-          let htmlAlertaUrgente = "";
-
-          if (resumenMon) {
-            if (resumenMon.includes("Gestante FPP")) {
-              const regM = baseMonitoreo["Gestante"][ingDni];
-              if (regM) {
-                const diasFPP = diasHastaFecha(regM.valB);
-                if (diasFPP !== null && diasFPP <= 30 && diasFPP >= 0) {
-                  htmlAlertaUrgente = `<p class="text-[10px] bg-purple-600 text-white font-extrabold p-1 rounded shadow animate-pulse">🤰 ALERTA: PARTO PRÓXIMO (${diasFPP} días)</p>`;
+            mostrarLoader(true);
+            document.getElementById('formContainer').classList.add('d-none');
+            document.getElementById('mensajeAlerta').classList.add('d-none');
+
+            try {
+                const response = await fetch(`${SCRIPT_ADMIN}?action=buscar&dni=${dni}`);
+                const data = await response.json();
+
+                if (data.status === "error" || !data.dni) {
+                    mostrarAlerta("❌ No se encontró ningún registro con el DNI ingresado.", "danger");
+                } else {
+                    dniActual = data.dni;
+                    // Llenar datos de lectura fija
+                    document.getElementById('lblDni').value = data.dni || "";
+                    document.getElementById('lblNombre').value = data.nombreB || "";
+                    document.getElementById('lblFamiliar').value = data.ffamiliar || "";
+
+                    // Llenar campos editables con las propiedades devueltas dinámicamente por el script
+                    document.getElementById('val_hclinica').value = data.hclinica || "";
+                    document.getElementById('val_telefono').value = data.telefono || "";
+                    
+                    // Si en tu columna M tienes un nombre específico (ej. "telefono_2" o "telefono-1"), cámbialo aquí según tu cabecera exacta de Google Sheets:
+                    document.getElementById('val_telefono_2').value = data.telefono_2 || data["telefono-1"] || ""; 
+                    
+                    document.getElementById('val_estado_civil').value = data.estado_civil || "";
+                    document.getElementById('val_sector').value = data.sector || "";
+                    document.getElementById('val_ref_direccion').value = data.ref_direccion || "";
+                    document.getElementById('val_mz').value = data.mz || "";
+                    document.getElementById('val_georeferencia').value = data.georeferencia || "";
+
+                    document.getElementById('formContainer').classList.remove('d-none');
+                    mostrarAlerta("✅ Registro encontrado con éxito.", "success");
                 }
-              }
+            } catch (error) {
+                console.error(error);
+                mostrarAlerta("❌ Error de conexión al consultar el servidor.", "danger");
+            } finally {
+                mostrarLoader(false);
             }
-            if (resumenMon.includes("Niño Anémico")) {
-              const regM = baseMonitoreo["AnemiaInfantil"][ingDni];
-              if (regM) {
-                const fechaAlta = sumarMesesAFecha(regM.valB, 7);
-                const diasFaltantes = diasHastaFecha(fechaAlta);
-                if (diasFaltantes !== null && diasFaltantes <= 30 && diasFaltantes >= 0) {
-                  htmlAlertaUrgente = `<p class="text-[10px] bg-red-600 text-white font-extrabold p-1 rounded shadow animate-pulse">⚡ ALERTA: Alta Próxima (${diasFaltantes} días)</p>`;
-                }
-              }
-            }
-
-            htmlMonitoreoInfo = `<p class="text-[10px] bg-amber-100 text-amber-900 p-1.5 rounded font-bold mt-1 leading-tight">💉 ${resumenMon}</p>`;
-          }
-
-          popupContent += `
-            <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm text-[11px] space-y-1">
-              ${htmlAlertaUrgente}
-              <p class="font-bold text-blue-900 uppercase">${ing.nombreB || 'SIN NOMBRE'}</p>
-              <p class="text-slate-600"><strong>DNI:</strong> ${ing.dni || '-'} | <strong>Edad:</strong> ${edadTxt}</p>
-              <p class="text-slate-600"><strong>HC:</strong> ${ing.hclinica || '-'} | <strong>Tel:</strong> ${tel || '-'}</p>
-              ${htmlMonitoreoInfo}
-          `;
-
-          popupContent += `
-            <div class="flex gap-1.5 pt-1">
-          `;
-
-          if (tel) {
-            popupContent += `
-              <a href="tel:${tel}" class="flex-1 bg-blue-600 text-white text-[10px] font-bold py-1 rounded text-center flex items-center justify-center gap-1 hover:bg-blue-700 transition">
-                <i data-lucide="phone" class="w-3 h-3 text-white"></i> <span class="text-white">Llamar</span>
-              </a>
-              <a href="https://wa.me/51${tel}" target="_blank" class="flex-1 bg-emerald-600 text-white text-[10px] font-bold py-1 rounded text-center flex items-center justify-center gap-1 hover:bg-emerald-700 transition">
-                <i data-lucide="message-circle" class="w-3 h-3 text-white"></i> <span class="text-white">WhatsApp</span>
-              </a>
-            `;
-          }
-
-          popupContent += `
-              <a href="${urlGoogleMaps}" target="_blank" class="bg-slate-700 text-white text-[10px] font-bold px-2 py-1 rounded text-center flex items-center justify-center gap-1 hover:bg-slate-800 transition" title="Ir con Google Maps">
-                <i data-lucide="map-pin" class="w-3 h-3 text-white"></i> <span class="text-white">Ruta</span>
-              </a>
-            </div>
-          `;
-
-          popupContent += `</div>`;
-        });
-
-        popupContent += `</div></div>`;
-
-        const marker = L.marker([grupo.lat, grupo.lng], { icon: iconoAUsar }).bindPopup(popupContent);
-        marker.on('popupopen', () => lucide.createIcons());
-        markersLayer.addLayer(marker);
-      });
-
-      if (drawnItems.getLayers().length > 0) {
-        drawnItems.eachLayer(layer => {
-          let labelText = "";
-          if (layer instanceof L.Circle) {
-            const radio = layer.getRadius();
-            const radioTxt = radio >= 1000 ? `${(radio / 1000).toFixed(2)} km` : `${Math.round(radio)} m`;
-            labelText = `📍 Radio: ${radioTxt} | 👥 Personas: ${totalPersonasEnFigura} (${totalPuntosEnFigura} familias)`;
-          } else if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
-            labelText = `📐 Zona seleccionada | 👥 Personas: ${totalPersonasEnFigura} (${totalPuntosEnFigura} familias)`;
-          }
-
-          if (labelText) {
-            layer.unbindTooltip();
-            layer.bindTooltip(labelText, {
-              permanent: true,
-              direction: 'top',
-              className: 'draw-tooltip'
-            }).openTooltip();
-          }
-        });
-      }
-
-      document.getElementById('badgeConteo').textContent = `${filtrados.length} Persona(s) (${bounds.length} Puntos)`;
-
-      // Ajustar la cámara global solo si no hay ubicación de usuario detectada
-      if (bounds.length > 0 && !userCurrentCoords) {
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
-      }
-    }
-
-    function actualizarEstadisticas(lista) {
-      let ninos = 0, adolescentes = 0, jovenes = 0, adultos = 0, ancianos = 0;
-
-      lista.forEach(item => {
-        const edad = calcularEdad(item.fn);
-        if (edad !== null) {
-          if (edad < 12) ninos++;
-          else if (edad <= 17) adolescentes++;
-          else if (edad <= 29) jovenes++;
-          else if (edad <= 59) adultos++;
-          else ancianos++;
         }
-      });
 
-      document.getElementById('stat_total').textContent = `${lista.length} pers.`;
-      document.getElementById('stat_ninos').textContent = ninos;
-      document.getElementById('stat_adolescentes').textContent = adolescentes;
-      document.getElementById('stat_jovenes').textContent = jovenes;
-      document.getElementById('stat_adultos').textContent = adultos;
-      document.getElementById('stat_ancianos').textContent = ancianos;
-    }
+        async function guardarCambios(event) {
+            event.preventDefault();
+            if (!dniActual) return;
 
-    function limpiarFiltros() {
-      document.getElementById('f_tipo_monitoreo').value = "";
-      document.getElementById('f_nombre_vacuna').value = "";
-      document.getElementById('f_mon_desde').value = "";
-      document.getElementById('f_mon_hasta').value = "";
-      document.getElementById('contenedorFiltroVacuna').classList.add('hidden');
-      document.getElementById('contenedorFechasMonitoreo').classList.add('hidden');
+            // Recolectar los inputs editables y enviar sus cambios columna por columna usando tu función 'actualizarColumna'
+            const inputs = document.querySelectorAll('#editForm input[data-col]');
+            mostrarLoader(true);
 
-      document.getElementById('f_ffamiliar').value = "";
-      document.getElementById('f_sector').value = "";
-      sectoresSeleccionados.clear();
-      document.getElementById('f_mz').value = "";
-      document.getElementById('f_dni').value = "";
-      document.getElementById('f_nombre').value = "";
-      document.getElementById('f_fn_desde').value = "";
-      document.getElementById('f_fn_hasta').value = "";
-      document.getElementById('badgeEdadEquivalente').classList.add('hidden');
-      filtroEtarioActivo = null;
-      ['ninos', 'adolescentes', 'jovenes', 'adultos', 'ancianos'].forEach(b => {
-        document.getElementById(`btn_etario_${b}`).classList.remove('ring-2', 'ring-blue-600', 'shadow-md', 'scale-[1.02]');
-      });
-      drawnItems.clearLayers();
-      aplicarFiltros();
-    }
+            let errores = 0;
 
-    window.onload = initMap;
-  </script>
+            for (let input of inputs) {
+                let columna = input.getAttribute('data-col');
+                let valor = input.value;
+
+                try {
+                    const url = `${SCRIPT_ADMIN}?action=actualizarColumna&dni=${dniActual}&columna=${encodeURIComponent(columna)}&valor=${encodeURIComponent(valor)}`;
+                    const response = await fetch(url);
+                    const resultadoTexto = await response.text();
+                    
+                    if (!resultadoTexto.includes("✅")) {
+                        errores++;
+                    }
+                } catch (e) {
+                    errores++;
+                    console.error(`Error actualizando ${columna}:`, e);
+                }
+            }
+
+            mostrarLoader(false);
+
+            if (errores === 0) {
+                alert("🎉 ¡Todos los cambios se guardaron correctamente en la base de datos!");
+                mostrarAlerta("✅ ¡Datos actualizados con éxito!", "success");
+            } else {
+                alert("⚠️ Hubo algunos errores al actualizar ciertas columnas. Verifique los nombres en las cabeceras de su Google Sheet.");
+                mostrarAlerta("⚠️ Algunos campos no pudieron actualizarse.", "warning");
+            }
+        }
+
+        function obtenerUbicacionActual() {
+            if (navigator.geolocation) {
+                mostrarLoader(true);
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        document.getElementById('val_georeferencia').value = `${lat}, ${lng}`;
+                        mostrarLoader(false);
+                    },
+                    (error) => {
+                        mostrarLoader(false);
+                        alert("No se pudo obtener la ubicación GPS: " + error.message);
+                    }
+                );
+            } else {
+                alert("La geolocalización no es compatible con este navegador.");
+            }
+        }
+    </script>
 </body>
 </html>
